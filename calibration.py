@@ -2,6 +2,7 @@ import cv2
 import os
 import shelve
 import numpy
+import math
 
 from transform import Corner
 import geometry as ge
@@ -97,7 +98,7 @@ class Calibrater:
         """
         target_width = self.width
         target_height = self.height
-        #table_corners = numpy.array([(100, 300), (target_width - 100, 300), (100, target_height - 200),
+        # table_corners = numpy.array([(100, 300), (target_width - 100, 300), (100, target_height - 200),
         #                             (target_width - 100, target_height - 200)], numpy.float32)
         table_corners = numpy.array([(0, 0), (target_width, 0), (0, target_height),
                                       (target_width, target_height)], numpy.float32)
@@ -190,6 +191,43 @@ class DragCorner:
             cv2.destroyAllWindows()
 
 
+def trasform_remap(image, gamma, threshold):
+    """
+    transform input image into warped one according to the a nonlinear coordinate map f(x)
+    (f(x) = ax^gamma+m when x>threshold, f(x) = x+b when x<threshold)
+    with following constraint:
+        1. f(height) = height
+        2. f'(threshold) = 1
+    where height is the height of input image
+
+    :param image: input image for warping
+    :param gamma: exponent number in f(x)
+    :param threshold: threshold number in f(x)
+    :return: output warped image
+    """
+    def warper(x, a, b, m, r, th):
+        if x >= th:
+            return a*math.pow(x, r) + m
+        else:
+            return x + b
+
+    map_shape = image.shape[:2]  # take the width and height of image as the map shape
+    h = map_shape[0]
+    a = 1.0/(gamma*math.pow(threshold, gamma-1))
+    m = h - math.pow(float(h), gamma)*a
+    b = (1.0-gamma)/gamma*threshold + m
+
+    map_x = numpy.zeros(map_shape, dtype=numpy.float32)
+    map_y = numpy.zeros(map_shape, dtype=numpy.float32)
+    # construct map
+
+    for x in xrange(0, map_shape[1]):
+        for y in xrange(0, map_shape[0]):
+            map_x[y, x] = x
+            map_y[y, x] = h - warper(h - y, a, b, m, gamma, threshold)
+
+    return cv2.remap(image, map_x, map_y, interpolation=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+
 if __name__ == '__main__':
     image = cv2.imread('./data/tennis.jpg')
     print image
@@ -199,9 +237,11 @@ if __name__ == '__main__':
     size = image.shape
     cal = Calibrater(image, img_size=size[-2::-1], width=tennis_width, height=tennis_height, data_path=None)
     perspective = cal.transform_image(image)
+    warp = trasform_remap(perspective, 1.5, float(1)/2*tennis_height)
 
     cv2.imshow('mask table', perspective)
     cv2.moveWindow('mask table', 100, 100)
+    cv2.imshow('warp table', warp)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     cal.save_table_corner(output_path='./data/tennis.bin')

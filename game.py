@@ -1,6 +1,7 @@
 import cv2
 import video_capture as camera
 from calibration import Calibrater
+from calibration import trasform_remap
 from geometry import Point
 
 class MyTracker:
@@ -64,11 +65,11 @@ if __name__ == '__main__':
     tennis_width = 600
     tennis_height = 1000
     shape = _frame.shape
-    cal = Calibrater(_frame, img_size=shape[-2::-1], width=tennis_width,height=tennis_height, data_path='./data/tennis_cal.bin')
+    cal = Calibrater(_frame, img_size=shape[-2::-1], width=tennis_width, height=tennis_height, data_path='./data/tennis_cal.bin')
 
     camera.resume()
     current_striker = 0
-    strike_point = [[],[]]
+    strike_point = [[], []]
 
     mouse_callback_param = dict()
     mouse_callback_param['strike_points'] = strike_point
