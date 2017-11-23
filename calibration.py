@@ -191,31 +191,38 @@ class DragCorner:
             cv2.destroyAllWindows()
 
 
-def trasform_remap(image, gamma, threshold):
+def warper(x, a, b, m, r, th):
+    if x >= th:
+        return a * math.pow(x, r) + m
+    else:
+        return x + b
+
+def inverse_warper(y, a, b, m, r, th):
+    if y >= th + b:
+        return math.pow((y-m)/a, 1.0/r)
+    else:
+        return y - b
+
+def calculate_remap(image, gamma, threshold, warper):
+
     """
-    transform input image into warped one according to the a nonlinear coordinate map f(x)
+    calculate remap matrix for a given warper f(x)
     (f(x) = ax^gamma+m when x>threshold, f(x) = x+b when x<threshold)
     with following constraint:
         1. f(height) = height
         2. f'(threshold) = 1
     where height is the height of input image
-
     :param image: input image for warping
     :param gamma: exponent number in f(x)
     :param threshold: threshold number in f(x)
-    :return: output warped image
+    :param warper: function f(x)
+    :return: output map_x and map_y
     """
-    def warper(x, a, b, m, r, th):
-        if x >= th:
-            return a*math.pow(x, r) + m
-        else:
-            return x + b
-
     map_shape = image.shape[:2]  # take the width and height of image as the map shape
     h = map_shape[0]
-    a = 1.0/(gamma*math.pow(threshold, gamma-1))
-    m = h - math.pow(float(h), gamma)*a
-    b = (1.0-gamma)/gamma*threshold + m
+    a = 1.0 / (gamma * math.pow(threshold, gamma - 1))
+    m = h - math.pow(float(h), gamma) * a
+    b = (1.0 - gamma) / gamma * threshold + m
 
     map_x = numpy.zeros(map_shape, dtype=numpy.float32)
     map_y = numpy.zeros(map_shape, dtype=numpy.float32)
@@ -226,6 +233,13 @@ def trasform_remap(image, gamma, threshold):
             map_x[y, x] = x
             map_y[y, x] = h - warper(h - y, a, b, m, gamma, threshold)
 
+    return map_x, map_y
+
+def trasform_remap(image, map_x, map_y):
+    """
+    transform input image into warped one according to the a nonlinear coordinate map f(x)
+    :return: output warped image
+    """
     return cv2.remap(image, map_x, map_y, interpolation=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 
 if __name__ == '__main__':
@@ -235,13 +249,16 @@ if __name__ == '__main__':
     tennis_width = 500
     tennis_height = 1000
     size = image.shape
-    cal = Calibrater(image, img_size=size[-2::-1], width=tennis_width, height=tennis_height, data_path=None)
+    cal = Calibrater(image, img_size=size[-2::-1], width=tennis_width, height=tennis_height, data_path='./data/tennis.bin')
     perspective = cal.transform_image(image)
-    warp = trasform_remap(perspective, 1.5, float(1)/2*tennis_height)
-
+    #warp = trasform_remap(perspective, 1.5, float(1)/2*tennis_height, warper=warper)
+    #invwarp = trasform_remap(warp, 1.5, float(1) / 2 * tennis_height, warper=inverse_warper)
+    mx1, my1 = calculate_remap(perspective, 0.5, float(1)/2*tennis_height, warper=warper)
     cv2.imshow('mask table', perspective)
     cv2.moveWindow('mask table', 100, 100)
+    warp = trasform_remap(perspective, mx1, my1)
     cv2.imshow('warp table', warp)
+    #cv2.imshow('invwarp table', invwarp)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     cal.save_table_corner(output_path='./data/tennis.bin')
