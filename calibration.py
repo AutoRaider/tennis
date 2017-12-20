@@ -219,6 +219,7 @@ def calculate_remap(image, gamma, threshold, warper):
     :return: output map_x and map_y
     """
     map_shape = image.shape[:2]  # take the width and height of image as the map shape
+
     h = map_shape[0]
     a = 1.0 / (gamma * math.pow(threshold, gamma - 1))
     m = h - math.pow(float(h), gamma) * a
@@ -230,9 +231,9 @@ def calculate_remap(image, gamma, threshold, warper):
 
     for x in xrange(0, map_shape[1]):
         for y in xrange(0, map_shape[0]):
-            map_x[y, x] = x
-            map_y[y, x] = h - warper(h - y, a, b, m, gamma, threshold)
-
+            map_x[y, x] = float(x)
+            map_y[y, x] = h - inverse_warper(h - y, a, b, m, r=gamma, th=threshold)
+            #print(str(y)+' to '+str(map_y[y, x]))
     return map_x, map_y
 
 def trasform_remap(image, map_x, map_y):
@@ -240,11 +241,34 @@ def trasform_remap(image, map_x, map_y):
     transform input image into warped one according to the a nonlinear coordinate map f(x)
     :return: output warped image
     """
-    return cv2.remap(image, map_x, map_y, interpolation=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    # out = numpy.zeros(image.shape)
+    # for y in xrange(image.shape[0]):
+    #     for x in xrange(image.shape[1]):
+    #         new_x = map_x[y, x]
+    #         new_y = map_y[y, x]
+    #         fx = int(math.floor(new_x))
+    #         fy = int(math.floor(new_y))
+    #         cx = int(math.ceil(new_x))
+    #         cy = int(math.ceil(new_y))
+    #         if fx == cx:
+    #             cx = fx + 1
+    #         if fy == cy:
+    #             cy = fy + 1
+    #         #print(fx, fy, cx, cy)
+    #         if fx >=0 and fx < image.shape[1] and fy >= 0 and fy < image.shape[0]:
+    #             out[fy, fx, :] += image[y, x, :]*(new_x-fx)*(new_y-fy)
+    #         if fx >=0 and fx < image.shape[1] and cy >= 0 and cy < image.shape[0]:
+    #             out[cy, fx, :] += image[y, x, :]*(new_x-fx)*(cy-new_y)
+    #         if cx >=0 and cx < image.shape[1] and fy >= 0 and fy < image.shape[0]:
+    #             out[fy, cx, :] += image[y, x, :]*(cx-new_x)*(new_y-fy)
+    #         if cx >=0 and cx < image.shape[1] and cy >= 0 and cy < image.shape[0]:
+    #             out[cy, cx, :] += image[y, x, :]*(cx-new_x)*(cy-new_y)
+
+    return cv2.remap(image, map_x, map_y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 
 if __name__ == '__main__':
     image = cv2.imread('./data/tennis.jpg')
-    print image
+    #print image
 
     tennis_width = 500
     tennis_height = 1000
@@ -253,7 +277,7 @@ if __name__ == '__main__':
     perspective = cal.transform_image(image)
     #warp = trasform_remap(perspective, 1.5, float(1)/2*tennis_height, warper=warper)
     #invwarp = trasform_remap(warp, 1.5, float(1) / 2 * tennis_height, warper=inverse_warper)
-    mx1, my1 = calculate_remap(perspective, 0.5, float(1)/2*tennis_height, warper=warper)
+    mx1, my1 = calculate_remap(perspective, 0.1, float(1)/2*tennis_height, warper=warper)
     cv2.imshow('mask table', perspective)
     cv2.moveWindow('mask table', 100, 100)
     warp = trasform_remap(perspective, mx1, my1)

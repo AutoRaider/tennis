@@ -3,8 +3,8 @@ import video_capture as camera
 from calibration import Calibrater
 from calibration import trasform_remap, warper, inverse_warper, calculate_remap
 from geometry import Point
-import numpy as np
-import math
+from config import config
+from video_writer import VideoWriter
 
 class MyTracker:
     def __init__(self, frame, bbox=None, color=(0, 0, 255)):
@@ -29,7 +29,7 @@ class MyTracker:
             p1 = (int(self.bbox[0]), int(self.bbox[1]))
             p2 = (int(self.bbox[0] + self.bbox[2]), int(self.bbox[1] + self.bbox[3]))
             cv2.rectangle(frame, p1, p2, self.color, 2, 1)
-            self.center = (self.bbox[0]+self.bbox[2]/2, self.bbox[1]+self.bbox[3])
+            self.center = (self.bbox[0]+self.bbox[2]/2, self.bbox[1] + self.bbox[3])
             return self.center
         else:
             # Tracking failure
@@ -48,11 +48,50 @@ def rgbMouseCallback(event, x, y, flag, para):
         tracker = mp['trackers'][striker]
         mp['current_striker'] = 1 - mp['current_striker']
         center = tracker.center
-        p = Point(center[0], h - inverse_warper(h - center[1], a, b, m, gamma, threshold))
+        p = Point(center[0], cfgs.tennis_height - inverse_warper(cfgs.tennis_height - center[1], **trans_param))
         mp['strike_points'][striker].append(p)
         print('strike_points: ')
         print('player1: ' + str([str(p) for p in mp['strike_points'][0]]))
         print('player2: ' + str([str(p) for p in mp['strike_points'][1]]))
+
+
+def DrawMiniWindow(frame, center1, center2):
+
+    # draw a mini stadium diagram
+    cv2.fillConvexPoly(frame, cfgs.micro_window, cfgs.micro_window_color)
+    mini_h = cfgs.micro_window_h
+    mini_w = cfgs.micro_window_w
+    mini_x = cfgs.micro_window_x
+    mini_y = cfgs.micro_window_y
+
+    delta_w = mini_w/8
+    delta_h = mini_h/10
+
+    cv2.line(frame,(mini_x, mini_y+delta_h),(mini_x+mini_w,mini_y+delta_h),(255,255,255), 2)
+    cv2.line(frame, (mini_x, mini_y + mini_h - delta_h), (mini_x + mini_w, mini_y + mini_h - delta_h), (255, 255, 255), 2)
+    cv2.line(frame, (mini_x + delta_w, mini_y + delta_h), (mini_x + delta_w, mini_y + mini_h - delta_h), (255, 255, 255), 2)
+    cv2.line(frame, (mini_x + mini_w - delta_w, mini_y + delta_h), (mini_x + mini_w - delta_w, mini_y + mini_h - delta_h), (255, 255, 255),2)
+    cv2.line(frame,(mini_x + delta_w, mini_y+mini_h/2), (mini_x + mini_w - delta_w, mini_y+mini_h/2),(255,255,255), 2)
+
+    if center1:
+        x = int(center1[0] / cfgs.tennis_width * mini_w + mini_x)
+        y = int((cfgs.tennis_height - inverse_warper(cfgs.tennis_height - center1[1], **trans_param)) / cfgs.tennis_height * mini_h + mini_y)
+        cv2.circle(frame, (x, y), 10, cfgs.player_colors[0], thickness=-1)
+    if center2:
+        x = int(center2[0] / cfgs.tennis_width * mini_w + mini_x)
+        y = int((cfgs.tennis_height - inverse_warper(cfgs.tennis_height - center2[1], **trans_param)) / cfgs.tennis_height * mini_h + mini_y)
+        cv2.circle(frame, (x, y), 10, cfgs.player_colors[1], thickness=-1)
+
+    for p in strike_point[0]:
+        x = int(p.tuple()[0] / cfgs.tennis_width * mini_w + mini_x)
+        y = int(p.tuple()[1] / cfgs.tennis_height * mini_h + mini_y)
+        cv2.circle(frame, (x, y), 10, cfgs.player_colors[0], thickness=3)
+    for p in strike_point[1]:
+        x = int(p.tuple()[0] / cfgs.tennis_width * mini_w + mini_x)
+        y = int(p.tuple()[1] / cfgs.tennis_height * mini_h + mini_y)
+        cv2.circle(frame, (x, y), 10, cfgs.player_colors[1], thickness=3)
+
+    return frame
 
 if __name__ == '__main__':
     camera = camera.Reader()
@@ -62,27 +101,22 @@ if __name__ == '__main__':
     _frame = camera.get()
     camera.pause()
     # pause fetching frames from capture
-    tennis_width = 600
-    tennis_height = 900
+    # build configuration object
+    cfgs = config()
+    trans_param = cfgs.load_trans_param()
+
     shape = _frame.shape
-    cal = Calibrater(_frame, img_size=shape[-2::-1], width=tennis_width, height=tennis_height, data_path='./data/tennis.bin')
+    cal = Calibrater(_frame, img_size=shape[-2::-1], width=cfgs.tennis_width, height=cfgs.tennis_height, data_path='./data/tennis.bin')
     trans_frame = cal.transform_image(_frame)
-    h = tennis_height
-    gamma = 2.5
-    threshold = tennis_height * 2.0 / 3.0
-    a = 1.0 / (gamma * math.pow(threshold, gamma - 1))
-    m = h - math.pow(float(h), gamma) * a
-    b = (1.0 - gamma) / gamma * threshold + m
-    map_x, map_y = calculate_remap(trans_frame, gamma=gamma, threshold=threshold, warper=warper)
+
+    map_x, map_y = calculate_remap(trans_frame, gamma=trans_param['r'], threshold=trans_param['th'], warper=warper)
     warped = trasform_remap(trans_frame, map_x, map_y)
 
-    # bbox1 = (880, 430, 120, 150)
-    # bbox2 = (530, 60, 80, 90)
     bbox1 = None
     bbox2 = None
 
-    tracker1 = MyTracker(warped, bbox1, color=(255, 0, 0))
-    tracker2 = MyTracker(warped, bbox2)
+    tracker1 = MyTracker(warped, bbox1, color=cfgs.player_colors[0])
+    tracker2 = MyTracker(warped, bbox2, color=cfgs.player_colors[1])
     # calibrate capture perspective
 
     camera.resume()
@@ -98,12 +132,7 @@ if __name__ == '__main__':
     cv2.namedWindow(mainwin)
     cv2.setMouseCallback(mainwin, rgbMouseCallback, [mouse_callback_param])
 
-    p1 = (50, 600)
-    p2 = (250, 600)
-    p3 = (50, 300)
-    p4 = (250, 300)
-
-    micro_win_points = np.array([p1, p2, p4, p3])
+    writer = VideoWriter('./data', 'tennis_trans.avi', fps=camera.fps, resolution=shape[:2])
 
     print 'init ok'
 
@@ -126,28 +155,13 @@ if __name__ == '__main__':
 
         # Display FPS on frame
         cv2.putText(_frame, "FPS : " + str(int(fps)), (100, 50), cv2.FONT_HERSHEY_COMPLEX, 0.75, (0, 0, 255), 2)
-        cv2.fillConvexPoly(_frame, micro_win_points, (200, 0, 60))
 
-        if center1:
-            x = int(center1[0] / tennis_width * 200 + 50)
-            y = int((h - inverse_warper(h - center1[1], a, b, m, gamma, threshold)) / tennis_height * 300 + 300)
-            cv2.circle(_frame, (x, y), 10, (0, 0, 255), thickness=-1)
-        if center2:
-            x = int(center2[0] / tennis_width * 200 + 50)
-            y = int((h - inverse_warper(h - center2[1], a, b, m, gamma, threshold)) / tennis_height * 300 + 300)
-            cv2.circle(_frame, (x, y), 10, (255, 255, 0), thickness=-1)
-
-        for p in strike_point[0]:
-            x = int(p.tuple()[0] / tennis_width * 200 + 50)
-            y = int(p.tuple()[1] / tennis_height * 300 + 300)
-            cv2.circle(_frame, (x, y), 10, (0, 0, 255), thickness=3)
-        for p in strike_point[1]:
-            x = int(p.tuple()[0] / tennis_width * 200 + 50)
-            y = int(p.tuple()[1] / tennis_height * 300 + 300)
-            cv2.circle(_frame, (x, y), 10, (255, 255, 0), thickness=3)
+        _frame = DrawMiniWindow(_frame, center1, center2)
 
         cv2.imshow(mainwin, _frame)
-        # cv2.imshow('warp', warped)
+        # save video
+        writer.write(_frame)
+        #cv2.imshow('warp', warped)
         # cv2.waitKey(0)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
