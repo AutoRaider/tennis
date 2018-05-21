@@ -33,13 +33,17 @@ class Calibrater:
 
         self.trans_matrix = self._get_trans_matrix()
 
-    def transform_point(self, point):
+    def transform_point(self, point, inverse=False):
         """
         transform a given point in orignal image to a new point in another perspective according to trans_matrix
         :param: point to transform
+        :param: inverse to set operation by transformation or inverse transformation
         :return: trans_point: transformed point coordinate
         """
-        return point.perspective(self.trans_matrix)
+        if not inverse:
+            return point.perspective(self.trans_matrix)
+        else:
+            return point.perspective(self.trans_matrix.I)
 
     def transform_image(self, inputimage):
         """
@@ -99,7 +103,7 @@ class Calibrater:
         target_width = self.width
         target_height = self.height
         # table_corners = numpy.array([(100, 300), (target_width - 100, 300), (100, target_height - 200),
-        #                             (target_width - 100, target_height - 200)], numpy.float32)
+        #                              (target_width - 100, target_height - 200)], numpy.float32)
         table_corners = numpy.array([(0, 0), (target_width, 0), (0, target_height),
                                       (target_width, target_height)], numpy.float32)
         corners = [[self.corner.p1.tuple(), self.corner.p2.tuple(), self.corner.p3.tuple(), self.corner.p4.tuple()]]
@@ -241,28 +245,7 @@ def trasform_remap(image, map_x, map_y):
     transform input image into warped one according to the a nonlinear coordinate map f(x)
     :return: output warped image
     """
-    # out = numpy.zeros(image.shape)
-    # for y in xrange(image.shape[0]):
-    #     for x in xrange(image.shape[1]):
-    #         new_x = map_x[y, x]
-    #         new_y = map_y[y, x]
-    #         fx = int(math.floor(new_x))
-    #         fy = int(math.floor(new_y))
-    #         cx = int(math.ceil(new_x))
-    #         cy = int(math.ceil(new_y))
-    #         if fx == cx:
-    #             cx = fx + 1
-    #         if fy == cy:
-    #             cy = fy + 1
-    #         #print(fx, fy, cx, cy)
-    #         if fx >=0 and fx < image.shape[1] and fy >= 0 and fy < image.shape[0]:
-    #             out[fy, fx, :] += image[y, x, :]*(new_x-fx)*(new_y-fy)
-    #         if fx >=0 and fx < image.shape[1] and cy >= 0 and cy < image.shape[0]:
-    #             out[cy, fx, :] += image[y, x, :]*(new_x-fx)*(cy-new_y)
-    #         if cx >=0 and cx < image.shape[1] and fy >= 0 and fy < image.shape[0]:
-    #             out[fy, cx, :] += image[y, x, :]*(cx-new_x)*(new_y-fy)
-    #         if cx >=0 and cx < image.shape[1] and cy >= 0 and cy < image.shape[0]:
-    #             out[cy, cx, :] += image[y, x, :]*(cx-new_x)*(cy-new_y)
+
 
     return cv2.remap(image, map_x, map_y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 
@@ -273,7 +256,7 @@ if __name__ == '__main__':
     tennis_width = 500
     tennis_height = 1000
     size = image.shape
-    cal = Calibrater(image, img_size=size[-2::-1], width=tennis_width, height=tennis_height, data_path='./data/tennis.bin')
+    cal = Calibrater(image, img_size=size[-2::-1], width=tennis_width, height=tennis_height, data_path=None)
     perspective = cal.transform_image(image)
     #warp = trasform_remap(perspective, 1.5, float(1)/2*tennis_height, warper=warper)
     #invwarp = trasform_remap(warp, 1.5, float(1) / 2 * tennis_height, warper=inverse_warper)

@@ -5,10 +5,12 @@ from calibration import trasform_remap, warper, inverse_warper, calculate_remap
 from geometry import Point
 from config import config
 from video_writer import VideoWriter
+from background import BGExtractor
 
 class MyTracker:
     def __init__(self, frame, bbox=None, color=(0, 0, 255)):
         self.tracker = cv2.TrackerKCF.create()
+        #self.tracker = TrackerCam()
         print self.tracker.getDefaultName()
         # self.tracker.create(cv2.TrackerKCF_CN)
         self.color = color
@@ -94,23 +96,25 @@ def DrawMiniWindow(frame, center1, center2):
     return frame
 
 if __name__ == '__main__':
-    camera = camera.Reader()
+    reader = camera.SimpleCapture(path='data', name='tennis.mp4')
 
-    camera.run(path='data', name='tennis.mp4')
-
-    _frame = camera.get()
-    camera.pause()
+    # camera.run(path='data', name='tennis.mp4')
+    #
+    # _frame = camera.get()
+    # camera.pause()
     # pause fetching frames from capture
     # build configuration object
     cfgs = config()
     trans_param = cfgs.load_trans_param()
-
+    ret, _frame = reader.read()
     shape = _frame.shape
     cal = Calibrater(_frame, img_size=shape[-2::-1], width=cfgs.tennis_width, height=cfgs.tennis_height, data_path='./data/tennis.bin')
     trans_frame = cal.transform_image(_frame)
 
     map_x, map_y = calculate_remap(trans_frame, gamma=trans_param['r'], threshold=trans_param['th'], warper=warper)
     warped = trasform_remap(trans_frame, map_x, map_y)
+    bg = BGExtractor()
+    # warped = bg.apply(warped)
 
     bbox1 = None
     bbox2 = None
@@ -118,8 +122,6 @@ if __name__ == '__main__':
     tracker1 = MyTracker(warped, bbox1, color=cfgs.player_colors[0])
     tracker2 = MyTracker(warped, bbox2, color=cfgs.player_colors[1])
     # calibrate capture perspective
-
-    camera.resume()
     current_striker = 0
     strike_point = [[], []]
 
@@ -132,17 +134,21 @@ if __name__ == '__main__':
     cv2.namedWindow(mainwin)
     cv2.setMouseCallback(mainwin, rgbMouseCallback, [mouse_callback_param])
 
-    writer = VideoWriter('./data', 'tennis_trans.avi', fps=camera.fps, resolution=shape[:2])
+    writer = VideoWriter('./data', 'tennis_trans.mp4', fps=int(reader.fps), resolution=reader.size, isColor=1)
 
     print 'init ok'
 
     while True:
         # time.sleep(0.1)
-        _frame = camera.get()
+        ret, _frame = reader.read()
+        if cv2.waitKey(1) & 0xFF == ord('q') or not ret:
+            break
+
         timer = cv2.getTickCount()
 
         trans_frame = cal.transform_image(_frame)
         warped = trasform_remap(trans_frame, map_x, map_y)
+        # warped = bg.apply(warped)
 
         center1 = tracker1.update(warped)
         center2 = tracker2.update(warped)
@@ -158,14 +164,15 @@ if __name__ == '__main__':
 
         _frame = DrawMiniWindow(_frame, center1, center2)
 
+        if cfgs.save:
+            writer.write(_frame)
         cv2.imshow(mainwin, _frame)
+        reader.wait()
         # save video
-        writer.write(_frame)
-        #cv2.imshow('warp', warped)
+        cv2.imshow('warp', warped)
         # cv2.waitKey(0)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
 
+    writer.release()
     cal.save_table_corner(output_path='./data/tennis.bin')
     cv2.destroyAllWindows()
-    camera.stop()
+

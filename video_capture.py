@@ -5,6 +5,17 @@ import threading
 
 import cv2
 
+class SimpleCapture:
+    def __init__(self, path, name):
+        self.device = cv2.VideoCapture(os.path.join(path, name))
+        self.fps = self.device.get(cv2.CAP_PROP_FPS)
+        self.size = ((int(self.device.get(cv2.CAP_PROP_FRAME_WIDTH)),int(self.device.get(cv2.CAP_PROP_FRAME_HEIGHT))))
+
+    def read(self):
+        return self.device.read()
+
+    def wait(self):
+        time.sleep(0.2/self.fps)
 
 class VideoCapture:
     WARNING_COUNT = 30

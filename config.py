@@ -24,6 +24,7 @@ class config:
 
         # player color
         self.player_colors = [(0, 0, 255), (255, 255, 0)]
+        self.save = True
 
     def load_trans_param(self):
         a = 1.0 / (self.gamma * math.pow(self.threshold, self.gamma - 1))
@@ -76,4 +77,7 @@ class config:
                 assert isinstance(color, tuple)
                 assert len(color) == 3
                 self.player_colors[idx] = color
+
+    def set_save(self, val):
+        self.save = val
 

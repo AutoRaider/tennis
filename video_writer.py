@@ -8,10 +8,10 @@ import cv2
 
 
 class VideoWriter:
-    def __init__(self, path, name, fps=30, resolution=(1280, 720)):
+    def __init__(self, path, name, fps=30, resolution=(1280, 720), isColor=1):
         self.save_path = os.path.join(path, name)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        self.writer = cv2.VideoWriter(self.save_path, fourcc, fps, resolution)
+        self.writer = cv2.VideoWriter(self.save_path, fourcc, fps, resolution, isColor=isColor)
 
     def write(self, frame):
         self.writer.write(frame)
