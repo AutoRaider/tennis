@@ -1,5 +1,5 @@
 import time
-import Queue
+from multiprocessing import Queue
 import threading
 
 import os
@@ -17,7 +17,7 @@ class VideoWriter:
         self.writer.write(frame)
 
     def release(self):
-        print 'Save video in ', self.save_path
+        print ('Save video in ', self.save_path)
         self.writer.release()
 
 
@@ -52,7 +52,7 @@ class ImagesWrite:
     def write(self, frame, file_name):
         file_path = os.path.join(self.path, file_name)
         cv2.imwrite(file_path, frame)
-        print '____Save %s in %s____' % (file_name, self.path)
+        print( '____Save %s in %s____' % (file_name, self.path))
 
 
 if __name__ == '__main__':
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         _frame = _app.get()
 
         if _frame is None:
-            print 'Video is over.'
+            print( 'Video is over.')
             break
 
         _video_writer.write(_frame)

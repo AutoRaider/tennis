@@ -22,7 +22,7 @@ class Calibrater:
             print('select the four corner in transformed map')
             self.corner = Corner()
             tuner = DragCorner(self.img, self.corner,[],'tune corner',size=self.img_size)
-            cv2.moveWindow('tuning corner', 0, 0)
+            # cv2.moveWindow('tuning corner', 0, 0)
             tuner.run(delay=True)
         else:
             # read saved calibration data
@@ -64,10 +64,10 @@ class Calibrater:
             response = dat[key]
         except ImportError:
             response = None
-            print ImportError
+            print(ImportError)
         except AttributeError:
             response = None
-            print AttributeError
+            print (AttributeError)
         dat.close()
         return response
 
@@ -80,6 +80,7 @@ class Calibrater:
         corner = dat['corner']
         dat.close()
         return corner
+    
 
     def save_table_corner(self, output_path=None):
         """
@@ -91,7 +92,10 @@ class Calibrater:
                 output_path = self.data_path
             if not output_path:
                 raise Exception('output_path must be set for saving data')
-            dat = shelve.open(output_path, writeback=True)
+            try:
+                dat = shelve.open(output_path, writeback=True)
+            except:
+                print("try")
             dat['corner'] = self.corner
             dat.close()
 
@@ -233,8 +237,8 @@ def calculate_remap(image, gamma, threshold, warper):
     map_y = numpy.zeros(map_shape, dtype=numpy.float32)
     # construct map
 
-    for x in xrange(0, map_shape[1]):
-        for y in xrange(0, map_shape[0]):
+    for x in range(0, map_shape[1]):
+        for y in range(0, map_shape[0]):
             map_x[y, x] = float(x)
             map_y[y, x] = h - inverse_warper(h - y, a, b, m, r=gamma, th=threshold)
             #print(str(y)+' to '+str(map_y[y, x]))
@@ -250,12 +254,13 @@ def trasform_remap(image, map_x, map_y):
     return cv2.remap(image, map_x, map_y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 
 if __name__ == '__main__':
-    image = cv2.imread('./data/tennis.jpg')
+    image = cv2.imread('demo.jpg')
     #print image
 
-    tennis_width = 500
-    tennis_height = 1000
+    tennis_width = 300
+    tennis_height = 400
     size = image.shape
+    print(size)
     cal = Calibrater(image, img_size=size[-2::-1], width=tennis_width, height=tennis_height, data_path=None)
     perspective = cal.transform_image(image)
     #warp = trasform_remap(perspective, 1.5, float(1)/2*tennis_height, warper=warper)

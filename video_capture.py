@@ -1,6 +1,6 @@
 import os
 import time
-import Queue
+from multiprocessing import Queue
 import threading
 
 import cv2
@@ -43,11 +43,11 @@ class VideoCapture:
             self.queue.put(frame)
 
             if self.stop_event.is_set():
-                print '-----------------video capture thread stop.-----------------'
+                print('-----------------video capture thread stop.-----------------')
                 break
 
             if self.queue.qsize() > self.WARNING_COUNT:
-                print 'The VideoCapture is jamming. The queue size is: %d' % self.queue.qsize()
+                print('The VideoCapture is jamming. The queue size is: %d' % self.queue.qsize())
 
     @staticmethod
     def _action_handler(ret):
@@ -85,7 +85,7 @@ class Camera(VideoCapture):
         self.device.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.device.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         self.device.set(cv2.CAP_PROP_FPS, self.fps)
-        print 'FPS is: %d.' % self.device.get(cv2.CAP_PROP_FPS)
+        print('FPS is: %d.' % self.device.get(cv2.CAP_PROP_FPS))
         self.thread = threading.Thread(target=self._action)
         self.thread.start()
 
@@ -124,7 +124,7 @@ class Camera(VideoCapture):
             full_path = os.path.join(path, name + '.png')
             ret = cv2.imwrite(full_path, frame)
             if ret:
-                print 'camera.Camera.capture: capture picture in success'
+                print('camera.Camera.capture: capture picture in success')
             else:
                 raise IOError('cannot save image: %s' % full_path)
 
@@ -150,25 +150,25 @@ class Reader(VideoCapture):
         time.sleep(1.0 / self.fps)
 
     def pause(self):
-        print 'pause'
+        print( 'pause')
         self._pause = True
 
     def resume(self):
-        print 'resume'
+        print( 'resume')
         self._pause = False
 
     def speed_up(self):
         self.fps += 5
         if self.fps > 1000:
             self.fps = 1000
-        print self.fps
+        print( self.fps)
 
     def slow_down(self):
         self.fps -= 5
         self.fps = int(self.fps)
         if self.fps < 1:
             self.fps = 1
-        print self.fps
+        print( self.fps)
 
     def next_frame(self):
         # print 'next frame'
@@ -180,7 +180,7 @@ class Reader(VideoCapture):
             raise IOError('cannot open video %s' % video_path)
 
         self.device = cv2.VideoCapture(video_path)
-        print self.device.isOpened()
+        print( self.device.isOpened())
         self.fps = self.device.get(cv2.CAP_PROP_FPS)
 
         self.thread = threading.Thread(target=self._action)
@@ -199,7 +199,7 @@ class Reader(VideoCapture):
         try:
             frame = self.queue.get()
         except Queue.Empty:
-            print 'Video is over!'
+            print( 'Video is over!')
             return None
         return frame
 
