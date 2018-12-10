@@ -29,7 +29,7 @@ frame_queue.put(frame)
 image = frame_queue.get()
 # cv2.imwrite(origin+"/demo.png", image)
 
-court = cv2.imread("court|.jpg")
+court = cv2.imread("court|.png")
 court = court[140:705, 160:390, :]
 
 scale = (300,400)
