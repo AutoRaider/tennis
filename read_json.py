@@ -32,7 +32,35 @@ print(len(d))
 keypoints = d[0]['keypoints']
 print(type(d[0]))
 print(type(keypoints))
-print(len(keypoints))
+print('len of keypoints:', len(keypoints))
+print(keypoints[15], keypoints[16])
+print(keypoints)
+# print(d[0])
+flag_id = d[0]['image_id']
+flag = 0
+for i in range(len(d)):
+	if i == len(d)-1:
+		flag = flag+1
+		print(flag)
+	elif flag_id == d[i]['image_id']:
+		flag = flag+1
+	else:
+		print(flag,flag_id,d[i]['image_id'] )
+		flag_id = d[i]['image_id']
+		flag = 1
+	
+	# print(d[i]['image_id'])
+	# print('keypoints:', d[i]['keypoints'][15], d[i]['keypoints'][16])
+num = 0
+for i in range(len(d)):
+	if d[i]['image_id'] == '504.jpg':
+		num = num+1
+print('num:', num)
+
+
+print(len(d))
+print(type(d))
+
 # print('\nimage_id:', image_id)
 # print('\ncategory_id:', category_id)
 # print('\nscore', score)
